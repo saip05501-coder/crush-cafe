@@ -112,7 +112,10 @@ function wireNavbar(user, profile) {
   const links  = document.querySelector(".nav-links");
   if (toggle && links && !toggle._wired) {
     toggle._wired = true;
-    toggle.addEventListener("click", () => links.classList.toggle("open"));
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation(); // prevent document click from closing immediately
+      links.classList.toggle("open");
+    });
   }
 }
 
