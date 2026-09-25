@@ -1,4 +1,4 @@
-# Kettle & Ash — Cafe Website
+# Crush — Cafe Website
 
 A pure HTML / CSS / vanilla JavaScript cafe website with Firebase for
 authentication and data (no React, no build step, no npm packages).
