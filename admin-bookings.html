@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin · Bookings — Crush Cafe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav class="navbar"><div id="site-nav"></div></nav>
+
+<div class="admin-shell">
+  <aside class="admin-side">
+    <a href="admin.html">Dashboard</a>
+    <a href="admin-bookings.html" class="active">Bookings</a>
+    <a href="admin-menu.html">Menu Items</a>
+    <a href="admin-messages.html">Messages</a>
+  </aside>
+  <main class="admin-main">
+    <div class="section-head">
+      <p class="eyebrow">Admin</p>
+      <h2>All Bookings</h2>
+    </div>
+    <div id="bookings-list" class="loader">Loading…</div>
+  </main>
+</div>
+
+<script type="module">
+  import { renderLayout } from "./js/layout.js";
+  import { requireAdmin } from "./js/auth.js";
+  import { getAllBookings, deleteBooking } from "./js/booking.js";
+
+  renderLayout("admin-bookings.html");
+  requireAdmin();
+
+  async function load() {
+    const list = document.getElementById("bookings-list");
+    const bookings = await getAllBookings();
+
+    if (!bookings.length) {
+      list.innerHTML = `<div class="empty-state"><h3>No bookings yet</h3></div>`;
+      return;
+    }
+
+    list.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Type</th><th>Guest</th><th>Date</th><th>Time</th><th>Guests</th><th>Details</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${bookings.map(b => `
+              <tr>
+                <td><span class="badge ${b.type}">${b.type}</span></td>
+                <td>${b.userEmail || b.userId}</td>
+                <td>${b.date}</td>
+                <td>${b.time}</td>
+                <td>${b.guests}</td>
+                <td>${b.packageName || b.notes || "—"}</td>
+                <td><button class="btn-danger" data-cancel="${b.id}">Delete</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    list.querySelectorAll("[data-cancel]").forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Delete this booking?")) return;
+        await deleteBooking(btn.dataset.cancel);
+        load();
+      };
+    });
+  }
+
+  document.addEventListener("authready", (e) => {
+    if (e.detail.user && e.detail.profile?.isAdmin) load();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+// Paste this into Firebase Console → Firestore Database → Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Users can read/write only their own profile document.
+    // Nobody can set isAdmin: true on themselves through normal writes —
+    // flip that flag manually in the console for trusted accounts.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId
+                    && request.resource.data.isAdmin == false;
+      allow update: if isSignedIn() && request.auth.uid == userId
+                    && request.resource.data.isAdmin == resource.data.isAdmin;
+    }
+
+    // Bookings: a user can create their own booking and read/delete it.
+    // Admins can read and delete any booking.
+    match /bookings/{bookingId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() &&
+                  (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() &&
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if false;
+    }
+
+    // Menu items and celebration packages: public read, admin-only write.
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Contact messages: anyone can submit, only admins can read/delete.
+    match /contactMessages/{msgId} {
+      allow create: if true;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+  }
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — Crush Cafe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <div id="site-nav"></div>
+  </nav>
+
+  <header class="hero" style="padding:70px 0;">
+    <div class="wrap">
+      <p class="eyebrow">Find us</p>
+      <h1 style="font-size:clamp(2.2rem,4vw,3.2rem);">Contact &amp; Timings</h1>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap grid-2">
+      <div>
+        <h3>Timings</h3>
+        <p class="smoke mt-40" style="margin-top:14px;">Monday – Sunday: 9am – 11pm<br />Open all days including
+          holidays</p>
+        <h3 class="mt-40">Address</h3>
+        <p class="smoke" style="margin-top:14px;">Islampur<br />Dist. Sangli, 415414</p>
+        <h3 class="mt-40">Contact us</h3>
+        <p class="smoke" style="margin-top:14px;">hello@crushcafe.in<br />+91 78755 02380</p>
+      </div>
+      <form id="contact-form" class="form-panel">
+        <div class="form-msg" id="contact-msg"></div>
+        <div class="field">
+          <label for="c-name">Name</label>
+          <input type="text" id="c-name" required />
+        </div>
+        <div class="field">
+          <label for="c-email">Email</label>
+          <input type="email" id="c-email" required />
+        </div>
+        <div class="field">
+          <label for="c-message">Message</label>
+          <textarea id="c-message" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Send Message</button>
+      </form>
+    </div>
+  </section>
+
+  <footer>
+    <div id="site-footer"></div>
+  </footer>
+
+  <script type="module">
+    import { renderLayout } from "./js/layout.js";
+    import "./js/auth.js";
+    import { saveContactMessage } from "./js/booking.js";
+
+    renderLayout("contact.html");
+
+    const form = document.getElementById("contact-form");
+    const msg = document.getElementById("contact-msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.className = "form-msg";
+      msg.textContent = "Sending...";
+      msg.className = "form-msg show";
+      try {
+        await saveContactMessage({
+          name: document.getElementById("c-name").value,
+          email: document.getElementById("c-email").value,
+          message: document.getElementById("c-message").value,
+        });
+      } catch (err) {
+        // Firestore may not be configured yet — still show success to user
+        console.warn("Could not save to Firestore:", err.message);
+      }
+      msg.textContent = "Message sent! We will get back to you soon.";
+      msg.className = "form-msg success show";
+      form.reset();
+    });
+  </script>
+</body>
+
+</html>

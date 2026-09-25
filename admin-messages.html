@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin · Messages — Crush Cafe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav class="navbar"><div id="site-nav"></div></nav>
+
+<div class="admin-shell">
+  <aside class="admin-side">
+    <a href="admin.html">Dashboard</a>
+    <a href="admin.html">Bookings</a>
+    <a href="admin.html">Menu Items</a>
+    <a href="admin-messages.html" class="active">Messages</a>
+  </aside>
+  <main class="admin-main">
+    <div class="section-head">
+      <p class="eyebrow">Admin</p>
+      <h2>Customer Messages</h2>
+    </div>
+    <div id="messages-list" class="loader">Loading messages…</div>
+  </main>
+</div>
+
+<script type="module">
+  import { renderLayout } from "./js/layout.js";
+  import { requireAdmin } from "./js/auth.js";
+  import { getAllMessages, deleteMessage } from "./js/booking.js";
+
+  renderLayout("admin-messages.html");
+  requireAdmin();
+
+  async function load() {
+    const list = document.getElementById("messages-list");
+    let messages = [];
+    try {
+      messages = await getAllMessages();
+    } catch (err) {
+      list.innerHTML = `<div class="empty-state"><h3>Could not load messages</h3>
+        <p style="color:#c0392b;">Error: ${err.message}</p>
+        <p>Make sure you have published the updated Firestore rules from <code>firestore.rules</code> in your Firebase Console.</p></div>`;
+      return;
+    }
+
+    if (!messages.length) {
+      list.innerHTML = `<div class="empty-state"><h3>No messages yet</h3><p>Messages sent from the Contact page will appear here.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Message</th>
+              <th>Received</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${messages.map(m => `
+              <tr>
+                <td><strong>${m.name}</strong></td>
+                <td><a href="mailto:${m.email}">${m.email}</a></td>
+                <td style="max-width:320px;">${m.message}</td>
+                <td style="white-space:nowrap;font-size:0.82rem;opacity:0.75;">${new Date(m.createdAt).toLocaleString("en-IN")}</td>
+                <td><button class="btn-danger" data-del="${m.id}">Delete</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    list.querySelectorAll("[data-del]").forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Delete this message?")) return;
+        await deleteMessage(btn.dataset.del);
+        load();
+      };
+    });
+  }
+
+  document.addEventListener("authready", (e) => {
+    if (e.detail.user && e.detail.profile?.isAdmin) load();
+  });
+</script>
+</body>
+</html>

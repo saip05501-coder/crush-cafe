@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Celebrations — Crush Cafe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <div id="site-nav"></div>
+  </nav>
+
+  <header class="hero" style="padding:70px 0;">
+    <div class="wrap">
+      <p class="eyebrow">Birthday · Anniversary · Get-together</p>
+      <h1 style="font-size:clamp(2.2rem,4vw,3.2rem);">Celebrations</h1>
+      <p class="lede">Plan your special day with us — we have packages for small groups, birthday parties, and big get-togethers.</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap">
+      <div id="packages" class="grid-3">
+        <div class="loader">Loading packages…</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-alt">
+    <div class="wrap">
+      <div class="section-head center" style="margin:0 auto 40px;">
+        <p class="eyebrow">Ready to book?</p>
+        <h2>Reserve a package</h2>
+      </div>
+
+      <div id="guest-notice" class="form-panel center hidden">
+        <p>You'll need an account to book a celebration.</p>
+        <a href="login.html" class="btn btn-primary mt-40">Log In or Sign Up</a>
+      </div>
+
+      <form id="booking-form" class="form-panel wide hidden">
+        <div id="msg" class="form-msg"></div>
+        <div class="field">
+          <label for="package">Package</label>
+          <select id="package" required></select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" required />
+          </div>
+          <div class="field">
+            <label for="time">Time</label>
+            <input type="time" id="time" required />
+          </div>
+        </div>
+        <div class="field">
+          <label for="guests">Guests</label>
+          <input type="number" id="guests" min="1" max="60" value="10" required />
+        </div>
+        <div class="field">
+          <label for="notes">Occasion & notes</label>
+          <textarea id="notes" rows="3" placeholder="e.g. 8th birthday, chocolate cake, no nuts"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Request Booking</button>
+      </form>
+    </div>
+  </section>
+
+  <footer>
+    <div id="site-footer"></div>
+  </footer>
+
+  <script type="module">
+    import { renderLayout } from "./js/layout.js";
+    import "./js/auth.js";
+    import { getPackages, SAMPLE_PACKAGES } from "./js/menu.js";
+    import { createBooking } from "./js/booking.js";
+
+    renderLayout("celebrations.html");
+
+    let packages = [];
+
+    (async () => {
+      try { packages = await getPackages(); } catch (e) { console.error(e); }
+      if (!packages.length) packages = SAMPLE_PACKAGES;
+
+      document.getElementById("packages").innerHTML = packages.map(p => `
+      <div class="card">
+        <span class="eyebrow">${p.includes || ""}</span>
+        <h3>${p.name}</h3>
+        <p>${p.description}</p>
+        <div class="card-price">From &#8377;${p.price}</div>
+      </div>
+    `).join("");
+
+      document.getElementById("package").innerHTML = packages.map(p =>
+        `<option value="${p.name}">${p.name} — $${p.price}</option>`
+      ).join("");
+    })();
+
+    let currentUser = null;
+    document.addEventListener("authready", (e) => {
+      currentUser = e.detail.user;
+      document.getElementById("guest-notice").classList.toggle("hidden", !!currentUser);
+      document.getElementById("booking-form").classList.toggle("hidden", !currentUser);
+    });
+
+    const form = document.getElementById("booking-form");
+    const msg = document.getElementById("msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!currentUser) return;
+      msg.className = "form-msg";
+
+      try {
+        await createBooking({
+          userId: currentUser.uid,
+          userEmail: currentUser.email,
+          type: "celebration",
+          packageName: document.getElementById("package").value,
+          date: document.getElementById("date").value,
+          time: document.getElementById("time").value,
+          guests: Number(document.getElementById("guests").value),
+          notes: document.getElementById("notes").value,
+        });
+        msg.textContent = "Request sent — we'll confirm by email shortly.";
+        msg.className = "form-msg success show";
+        form.reset();
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = "form-msg error show";
+      }
+    });
+  </script>
+</body>
+
+</html>

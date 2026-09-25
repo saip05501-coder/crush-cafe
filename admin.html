@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — Crush Cafe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .tab-section { display: none; }
+  .tab-section.active { display: block; }
+  .admin-side a.active { opacity: 1; border-left-color: var(--ember-bright); background: rgba(255,255,255,0.05); }
+  @media (max-width: 800px) {
+    .admin-side a.active { border-bottom-color: var(--ember-bright); border-left-color: transparent; }
+  }
+</style>
+</head>
+<body>
+<nav class="navbar"><div id="site-nav"></div></nav>
+
+<div class="admin-shell">
+  <aside class="admin-side">
+    <a href="#" class="tab-link active" data-tab="dashboard">Dashboard</a>
+    <a href="#" class="tab-link" data-tab="bookings">Bookings</a>
+    <a href="#" class="tab-link" data-tab="menu-items">Menu Items</a>
+    <a href="#" class="tab-link" data-tab="messages">Messages</a>
+  </aside>
+
+  <main class="admin-main">
+
+    <!-- ── DASHBOARD ─────────────────────────────────────── -->
+    <div id="tab-dashboard" class="tab-section active">
+      <div class="section-head">
+        <p class="eyebrow">Admin</p>
+        <h2>Dashboard</h2>
+      </div>
+      <div class="admin-stats" id="stats">
+        <div class="stat-box"><div class="num">—</div><div class="label">Total Bookings</div></div>
+        <div class="stat-box"><div class="num">—</div><div class="label">Table Bookings</div></div>
+        <div class="stat-box"><div class="num">—</div><div class="label">Celebrations</div></div>
+        <div class="stat-box"><div class="num" id="msg-count">—</div><div class="label">Messages</div></div>
+      </div>
+      <div id="dash-recent" class="loader">Loading…</div>
+    </div>
+
+    <!-- ── BOOKINGS ──────────────────────────────────────── -->
+    <div id="tab-bookings" class="tab-section">
+      <div class="section-head">
+        <p class="eyebrow">Admin</p>
+        <h2>All Bookings</h2>
+      </div>
+      <div id="bookings-list" class="loader">Loading…</div>
+    </div>
+
+    <!-- ── MENU ITEMS ────────────────────────────────────── -->
+    <div id="tab-menu-items" class="tab-section">
+      <div class="section-head">
+        <p class="eyebrow">Admin</p>
+        <h2>Menu Items</h2>
+      </div>
+      <form id="add-item-form" class="form-panel wide" style="margin:0 0 40px;">
+        <div id="item-msg" class="form-msg"></div>
+        <div class="field-row">
+          <div class="field">
+            <label for="item-name">Item Name</label>
+            <input type="text" id="item-name" required />
+          </div>
+          <div class="field">
+            <label for="item-category">Category</label>
+            <input type="text" id="item-category" placeholder="Chai & Coffee, Snacks, Meals…" required />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="item-price">Price (₹)</label>
+            <input type="number" id="item-price" step="1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="item-desc">Description</label>
+            <input type="text" id="item-desc" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Item</button>
+      </form>
+      <div id="menu-items-list" class="loader">Loading…</div>
+    </div>
+
+    <!-- ── MESSAGES ──────────────────────────────────────── -->
+    <div id="tab-messages" class="tab-section">
+      <div class="section-head">
+        <p class="eyebrow">Admin</p>
+        <h2>Customer Messages</h2>
+      </div>
+      <div id="messages-list" class="loader">Loading…</div>
+    </div>
+
+  </main>
+</div>
+
+<script type="module">
+  import { renderLayout } from "./js/layout.js";
+  import { requireAdmin } from "./js/auth.js";
+  import { getAllBookings, deleteBooking, getAllMessages, deleteMessage } from "./js/booking.js";
+  import { getMenuItems, addMenuItem, deleteMenuItem } from "./js/menu.js";
+
+  renderLayout("admin.html");
+  requireAdmin();
+
+  // ── Tab switching ────────────────────────────────────────────────────────
+  const tabLinks = document.querySelectorAll(".tab-link");
+  const tabSections = document.querySelectorAll(".tab-section");
+
+  function showTab(tabId) {
+    tabLinks.forEach(l => l.classList.remove("active"));
+    tabSections.forEach(s => s.classList.remove("active"));
+    const link = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
+    const section = document.getElementById(`tab-${tabId}`);
+    if (link) link.classList.add("active");
+    if (section) section.classList.add("active");
+  }
+
+  tabLinks.forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      showTab(link.dataset.tab);
+    });
+  });
+
+  // ── Load all data once auth is ready ────────────────────────────────────
+  document.addEventListener("authready", async (e) => {
+    if (!e.detail.user || !e.detail.profile?.isAdmin) return;
+    loadDashboard();
+    loadBookings();
+    loadMenuItems();
+    loadMessages();
+  });
+
+  // ── Dashboard ────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    let bookings = [], messages = [];
+    try { bookings = await getAllBookings(); } catch (_) {}
+    try { messages = await getAllMessages(); } catch (_) {}
+
+    const tableCount = bookings.filter(b => b.type === "table").length;
+    const celebCount = bookings.filter(b => b.type === "celebration").length;
+
+    document.getElementById("stats").innerHTML = `
+      <div class="stat-box"><div class="num">${bookings.length}</div><div class="label">Total Bookings</div></div>
+      <div class="stat-box"><div class="num">${tableCount}</div><div class="label">Table Bookings</div></div>
+      <div class="stat-box"><div class="num">${celebCount}</div><div class="label">Celebrations</div></div>
+      <div class="stat-box"><div class="num">${messages.length}</div><div class="label">Messages</div></div>
+    `;
+
+    const recent = bookings.slice(0, 5);
+    document.getElementById("dash-recent").innerHTML = recent.length ? `
+      <h3 style="margin-bottom:14px;">Recent Bookings</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Guest</th><th>Date</th><th>Time</th></tr></thead>
+          <tbody>${recent.map(b => `
+            <tr>
+              <td><span class="badge ${b.type}">${b.type}</span></td>
+              <td>${b.userEmail || b.userId}</td>
+              <td>${b.date}</td>
+              <td>${b.time}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    ` : `<div class="empty-state"><h3>No bookings yet</h3></div>`;
+  }
+
+  // ── Bookings ─────────────────────────────────────────────────────────────
+  async function loadBookings() {
+    const el = document.getElementById("bookings-list");
+    let bookings = [];
+    try { bookings = await getAllBookings(); } catch (err) {
+      el.innerHTML = `<div class="empty-state"><h3>Error loading bookings</h3><p>${err.message}</p></div>`;
+      return;
+    }
+    if (!bookings.length) {
+      el.innerHTML = `<div class="empty-state"><h3>No bookings yet</h3></div>`;
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Guest</th><th>Date</th><th>Time</th><th>Guests</th><th>Details</th><th></th></tr></thead>
+          <tbody>${bookings.map(b => `
+            <tr>
+              <td><span class="badge ${b.type}">${b.type}</span></td>
+              <td>${b.userEmail || b.userId}</td>
+              <td>${b.date}</td>
+              <td>${b.time}</td>
+              <td>${b.guests}</td>
+              <td>${b.packageName || b.notes || "—"}</td>
+              <td><button class="btn-danger" data-del-booking="${b.id}">Delete</button></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+    el.querySelectorAll("[data-del-booking]").forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Delete this booking?")) return;
+        await deleteBooking(btn.dataset.delBooking);
+        loadBookings();
+        loadDashboard();
+      };
+    });
+  }
+
+  // ── Menu Items ───────────────────────────────────────────────────────────
+  async function loadMenuItems() {
+    const el = document.getElementById("menu-items-list");
+    let items = [];
+    try { items = await getMenuItems(); } catch (err) {
+      el.innerHTML = `<div class="empty-state"><h3>Error loading menu</h3><p>${err.message}</p></div>`;
+      return;
+    }
+    if (!items.length) {
+      el.innerHTML = `<div class="empty-state"><h3>No menu items yet</h3><p>Add your first item above.</p></div>`;
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Description</th><th></th></tr></thead>
+          <tbody>${items.map(i => `
+            <tr>
+              <td>${i.name}</td>
+              <td>${i.category}</td>
+              <td>&#8377;${i.price}</td>
+              <td>${i.description || "—"}</td>
+              <td><button class="btn-danger" data-del-item="${i.id}">Delete</button></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+    el.querySelectorAll("[data-del-item]").forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Delete this item?")) return;
+        await deleteMenuItem(btn.dataset.delItem);
+        loadMenuItems();
+      };
+    });
+  }
+
+  document.getElementById("add-item-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("item-msg");
+    msg.className = "form-msg";
+    try {
+      await addMenuItem({
+        name:        document.getElementById("item-name").value,
+        category:    document.getElementById("item-category").value,
+        price:       document.getElementById("item-price").value,
+        description: document.getElementById("item-desc").value,
+      });
+      msg.textContent = "Item added successfully.";
+      msg.className = "form-msg success show";
+      e.target.reset();
+      loadMenuItems();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "form-msg error show";
+    }
+  });
+
+  // ── Messages ─────────────────────────────────────────────────────────────
+  async function loadMessages() {
+    const el = document.getElementById("messages-list");
+    let messages = [];
+    try { messages = await getAllMessages(); } catch (err) {
+      el.innerHTML = `<div class="empty-state"><h3>Could not load messages</h3>
+        <p style="color:#c0392b;margin-top:8px;">Error: ${err.message}</p>
+        <p style="margin-top:8px;">Make sure you have published the updated Firestore rules.</p></div>`;
+      return;
+    }
+    if (!messages.length) {
+      el.innerHTML = `<div class="empty-state"><h3>No messages yet</h3><p>Messages from the Contact page will appear here.</p></div>`;
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Message</th><th>Received</th><th></th></tr></thead>
+          <tbody>${messages.map(m => `
+            <tr>
+              <td><strong>${m.name}</strong></td>
+              <td><a href="mailto:${m.email}" style="color:var(--ember);">${m.email}</a></td>
+              <td style="max-width:280px;white-space:normal;">${m.message}</td>
+              <td style="white-space:nowrap;font-size:0.8rem;opacity:0.7;">${new Date(m.createdAt).toLocaleString("en-IN")}</td>
+              <td><button class="btn-danger" data-del-msg="${m.id}">Delete</button></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+    el.querySelectorAll("[data-del-msg]").forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Delete this message?")) return;
+        await deleteMessage(btn.dataset.delMsg);
+        loadMessages();
+        loadDashboard();
+      };
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Menu — Crush Cafe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav class="navbar"><div id="site-nav"></div></nav>
+
+<header class="hero" style="padding:70px 0;">
+  <div class="wrap">
+    <p class="eyebrow">Updated regularly</p>
+    <h1 style="font-size:clamp(2.2rem,4vw,3.2rem);">Our Menu</h1>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="menu-cat-tabs" id="cat-tabs"></div>
+    <div id="menu-list" class="loader">Loading menu…</div>
+  </div>
+</section>
+
+<footer><div id="site-footer"></div></footer>
+
+<script type="module">
+  import { renderLayout } from "./js/layout.js";
+  import "./js/auth.js";
+  import { getMenuItems, SAMPLE_MENU } from "./js/menu.js";
+
+  renderLayout("menu.html");
+
+  let allItems = [];
+  let activeCat = "All";
+
+  function draw() {
+    const cats = ["All", ...new Set(allItems.map(i => i.category))];
+    document.getElementById("cat-tabs").innerHTML = cats.map(c =>
+      `<button class="${c === activeCat ? "active" : ""}" data-cat="${c}">${c}</button>`
+    ).join("");
+    document.querySelectorAll("#cat-tabs button").forEach(btn => {
+      btn.onclick = () => { activeCat = btn.dataset.cat; draw(); };
+    });
+
+    const shown = activeCat === "All" ? allItems : allItems.filter(i => i.category === activeCat);
+    const list = document.getElementById("menu-list");
+    if (!shown.length) {
+      list.innerHTML = `<div class="empty-state"><h3>Nothing here yet</h3><p>Check back soon.</p></div>`;
+      return;
+    }
+    list.innerHTML = shown.map(i => `
+      <div class="menu-card">
+        <div>
+          <h4>${i.name}</h4>
+          <p>${i.description || ""}</p>
+        </div>
+        <div class="price">₹${i.price}</div>
+      </div>
+    `).join("");
+  }
+
+  (async () => {
+    try { allItems = await getMenuItems(); } catch (e) { console.error(e); }
+    if (!allItems.length) allItems = SAMPLE_MENU;
+    draw();
+  })();
+</script>
+</body>
+</html>
