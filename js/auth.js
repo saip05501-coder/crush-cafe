@@ -107,16 +107,9 @@ function wireNavbar(user, profile) {
     };
   });
 
-  // Wire mobile nav toggle AFTER the nav HTML is in the DOM
-  const toggle = document.querySelector(".nav-toggle");
-  const links  = document.querySelector(".nav-links");
-  if (toggle && links && !toggle._wired) {
-    toggle._wired = true;
-    toggle.addEventListener("click", (e) => {
-      e.stopPropagation(); // prevent document click from closing immediately
-      links.classList.toggle("open");
-    });
-  }
+  // NOTE: Mobile nav toggle is wired once by layout.js (renderLayout).
+  // Do NOT add another listener here — duplicate listeners cause the menu
+  // to toggle twice (open then immediately close) on mobile.
 }
 
 // ---------- Auth state observer ----------
